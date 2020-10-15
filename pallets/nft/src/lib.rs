@@ -31,7 +31,7 @@ use sp_std::vec::Vec;
 mod mock;
 mod tests;
 
-pub type CID = Vec<u8>;
+pub type CID = u32;
 
 /// Class info
 #[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]

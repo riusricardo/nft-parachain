@@ -227,7 +227,7 @@ impl cumulus_message_broker::Trait for Runtime {
 	type DownwardMessageHandlers = TokenDealer;
 	type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
 	type ParachainId = ParachainInfo;
-	type XCMPMessage = cumulus_token_dealer::XCMPMessage<AccountId, Balance, TokenInfo<AccountId,()>>;
+	type XCMPMessage = cumulus_token_dealer::XCMPMessage<AccountId, Balance, TokenInfo<AccountId, template::TokenData>>;
 	type XCMPMessageHandlers = TokenDealer;
 }
 
@@ -244,8 +244,8 @@ impl cumulus_token_dealer::Trait for Runtime {
 impl orml_nft::Trait for Runtime {
 	type ClassId = u64;
 	type TokenId = u64;
-	type ClassData = ();
-	type TokenData = ();
+	type ClassData = template::ClassData;
+	type TokenData = template::TokenData;
 }
 
 /// Configure the pallet template in pallets/template.

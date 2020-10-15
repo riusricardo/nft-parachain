@@ -16,7 +16,7 @@ use cumulus_primitives::{
 };
 use cumulus_upward_message::BalancesMessage;
 use polkadot_parachain::primitives::AccountIdConversion;
-use orml_nft::TokenInfo;
+use orml_nft::{TokenInfoOf, TokenInfo};
 
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<XAccountId, XBalance, XTokenInfo> {
@@ -43,13 +43,14 @@ pub trait Trait: frame_system::Trait + orml_nft::Trait + template::Trait {
 	type Currency: Currency<Self::AccountId>;
 
 	/// The sender of XCMP messages.
-	type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, BalanceOf<Self>, TokenInfo<Self::AccountId, Self::TokenData>>>;
+	type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, BalanceOf<Self>, TokenInfoOf<Self>>>;
 }
 
 decl_event! {
 	pub enum Event<T> where
 		AccountId = <T as frame_system::Trait>::AccountId,
-		Balance = BalanceOf<T>
+		Balance = BalanceOf<T>,
+		TokenInfo = TokenInfoOf<T>,
 	{
 		/// Transferred tokens to the account on the relay chain.
 		TransferredTokensToRelayChain(AccountId, Balance),
@@ -57,6 +58,8 @@ decl_event! {
 		TransferredTokensFromRelayChain(AccountId, Balance),
 		/// Transferred tokens to the account from the given parachain account.
 		TransferredTokensViaXCMP(ParaId, AccountId, Balance, DispatchResult),
+		/// Transferred NFT to the account from the given account.
+		TransferredNftViaXCMP(ParaId, AccountId, TokenInfo, DispatchResult),
 	}
 }
 
@@ -114,10 +117,10 @@ decl_module! {
 				dest: T::AccountId,
 				token_id: T::TokenId,
 			) {
-
+				let who = ensure_signed(origin)?;
 				let token_class: T::ClassId = 0.into();
 				let token_info = <orml_nft::Module<T>>::tokens(token_class, &token_id);
-				<template::Module<T>>::burn_nft(origin, token_id)?;
+				<template::Module<T>>::burn_nft(who, token_id)?;
 
 				T::XCMPMessageSender::send_xcmp_message(
 					para_id.into(),
@@ -151,8 +154,8 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
 	}
 }
 
-impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, TokenInfo<T::AccountId, T::TokenData>>> for Module<T> {
-	fn handle_xcmp_message(src: ParaId, msg: &XCMPMessage<T::AccountId, BalanceOf<T>, TokenInfo<T::AccountId, T::TokenData>>) {
+impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, TokenInfoOf<T>>> for Module<T> {
+	fn handle_xcmp_message(src: ParaId, msg: &XCMPMessage<T::AccountId, BalanceOf<T>, TokenInfoOf<T>>) {
 		match msg {
 			XCMPMessage::TransferToken(dest, amount) => {
 				let para_account = src.clone().into_account();
@@ -172,10 +175,19 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, TokenI
 				));
 			},
 			XCMPMessage::TransferNft(dest, token_info) => {
-				//<template::Module<T>>::mint_nft(dest, token_info.metadata, token_info.data);
-				let token_class: T::ClassId = 0.into();
 				let TokenInfo {metadata, owner: _, data} = token_info;
-				let _ = <orml_nft::Module<T>>::mint(&dest, token_class, metadata.clone(), data.clone());
+				let res = <template::Module<T>>::mint_nft(
+					dest.clone(),
+					metadata.clone(),
+					data.clone()
+				);
+
+				Self::deposit_event(Event::<T>::TransferredNftViaXCMP(
+					src,
+					dest.clone(),
+					token_info.clone(),
+					res,
+				));
 			}
 		}
 	}
