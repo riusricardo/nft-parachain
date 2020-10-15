@@ -19,6 +19,8 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use orml_nft::TokenInfo;
+use sp_std::vec::Vec;
 
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
@@ -225,7 +227,7 @@ impl cumulus_message_broker::Trait for Runtime {
 	type DownwardMessageHandlers = TokenDealer;
 	type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
 	type ParachainId = ParachainInfo;
-	type XCMPMessage = cumulus_token_dealer::XCMPMessage<AccountId, Balance>;
+	type XCMPMessage = cumulus_token_dealer::XCMPMessage<AccountId, Balance, TokenInfo<AccountId,()>>;
 	type XCMPMessageHandlers = TokenDealer;
 }
 
@@ -237,6 +239,13 @@ impl cumulus_token_dealer::Trait for Runtime {
 	type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
 	type Currency = Balances;
 	type XCMPMessageSender = MessageBroker;
+}
+
+impl orml_nft::Trait for Runtime {
+	type ClassId = u64;
+	type TokenId = u64;
+	type ClassData = ();
+	type TokenData = ();
 }
 
 /// Configure the pallet template in pallets/template.
@@ -260,6 +269,7 @@ construct_runtime! {
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		ParachainInfo: parachain_info::{Module, Storage, Config},
 		TokenDealer: cumulus_token_dealer::{Module, Call, Event<T>},
+		OrmlNft: orml_nft::{Module, Call, Storage},
 		TemplateModule: template::{Module, Call, Storage, Event<T>},
 	}
 }
